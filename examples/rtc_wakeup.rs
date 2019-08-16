@@ -11,10 +11,7 @@ use stm32l0xx_hal::{
     gpio,
     prelude::*,
     pac,
-    pwr::{
-        self,
-        PWR,
-    },
+    pwr::PWR,
     rcc,
     rtc::{
         self,
@@ -30,20 +27,21 @@ fn main() -> ! {
     let dp = pac::Peripherals::take().unwrap();
 
     let mut rcc   = dp.RCC.freeze(rcc::Config::hsi16());
-    let mut delay = cp.SYST.delay(rcc.clocks);
-    let mut nvic  = cp.NVIC;
-    let mut scb   = cp.SCB;
-    let mut exti  = dp.EXTI;
-    let     gpiob = dp.GPIOB.split(&mut rcc);
-    let mut pwr   = PWR::new(dp.PWR, &mut rcc);
 
-    let mut syscfg = dp.SYSCFG_COMP;
-
-    let     button = gpiob.pb5.into_floating_input();
+    // Initialize all the GPIO we need
+    let     gpiob  = dp.GPIOB.split(&mut rcc);
+    let     button = gpiob.pb5.into_pull_down_input();
     let mut led    = gpiob.pb12.into_push_pull_output();
 
-    // Disable LED
-    led.set_high().unwrap();
+    // Enable LED to signal that MCU is running
+    led.set_low().unwrap();
+
+    let mut nvic = cp.NVIC;
+    let mut scb  = cp.SCB;
+    let mut exti = dp.EXTI;
+    let mut pwr  = PWR::new(dp.PWR, &mut rcc);
+
+    let mut syscfg = dp.SYSCFG_COMP;
 
     let instant = Instant::new()
         .set_year(19)
@@ -74,25 +72,19 @@ fn main() -> ! {
         exti::TriggerEdge::Rising,
     );
 
+    while button.is_low().unwrap() {}
+
+    rtc.wakeup_timer().start(1u32);
+
+    exti.wait_for_irq(
+        exti_line,
+        pwr.standby_mode(&mut scb),
+        &mut nvic,
+    );
+
+    // Waking up from Standby mode resets the microcontroller, so we should
+    // never reach this point.
     loop {
         led.set_low().unwrap();
-        delay.delay_ms(100u32);
-        led.set_high().unwrap();
-
-        while button.is_low().unwrap() {}
-
-        rtc.wakeup_timer().start(1u32);
-
-        exti.wait_for_irq(
-            exti_line,
-            pwr.stop_mode(
-                &mut scb,
-                &mut rcc,
-                pwr::StopModeConfig {
-                    ultra_low_power: true,
-                },
-            ),
-            &mut nvic,
-        );
     }
 }
