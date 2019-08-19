@@ -6,5 +6,5 @@ rustflags = [
     "-C", "link-arg=-Tlink.x",
 ]
 # Uncomment the runner that you want to use.
-runner = "./flash-gnat.sh" # dfu-util
+runner = "scripts/flash.sh" # dfu-util
 #runner = "arm-none-eabi-gdb -tui -q -x openocd.gdb" # OpenOCD
