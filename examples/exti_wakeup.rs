@@ -15,6 +15,7 @@ use stm32l0xx_hal::{
         PWR,
     },
     rcc::Config,
+    syscfg::SYSCFG,
 };
 
 
@@ -30,7 +31,7 @@ fn main() -> ! {
     let mut delay  = cp.SYST.delay(rcc.clocks);
     let mut nvic   = cp.NVIC;
     let mut scb    = cp.SCB;
-    let mut syscfg = dp.SYSCFG_COMP;
+    let mut syscfg = SYSCFG::new(dp.SYSCFG_COMP, &mut rcc);
 
     // Those are the user button and blue LED on the B-L072Z-LRWAN1 Discovery
     // board.
@@ -41,7 +42,6 @@ fn main() -> ! {
     led.set_high().unwrap();
 
     exti.listen(
-        &mut rcc,
         &mut syscfg,
         button.port,
         button.i,
