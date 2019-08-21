@@ -33,8 +33,6 @@ fn main() -> ! {
     let mut scb    = cp.SCB;
     let mut syscfg = SYSCFG::new(dp.SYSCFG_COMP, &mut rcc);
 
-    // Those are the user button and blue LED on the B-L072Z-LRWAN1 Discovery
-    // board.
     let     button = gpiob.pb5.into_floating_input();
     let mut led    = gpiob.pb12.into_push_pull_output();
 
