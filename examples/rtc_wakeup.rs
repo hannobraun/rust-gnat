@@ -18,6 +18,7 @@ use stm32l0xx_hal::{
         Instant,
         RTC,
     },
+    syscfg::SYSCFG,
 };
 
 
@@ -36,12 +37,12 @@ fn main() -> ! {
     // Enable LED to signal that MCU is running
     led.set_low().unwrap();
 
-    let mut nvic = cp.NVIC;
-    let mut scb  = cp.SCB;
-    let mut exti = dp.EXTI;
-    let mut pwr  = PWR::new(dp.PWR, &mut rcc);
+    let mut nvic   = cp.NVIC;
+    let mut scb    = cp.SCB;
+    let mut exti   = dp.EXTI;
+    let mut pwr    = PWR::new(dp.PWR, &mut rcc);
+    let mut syscfg = SYSCFG::new(dp.SYSCFG_COMP, &mut rcc);
 
-    let mut syscfg = dp.SYSCFG_COMP;
 
     let instant = Instant::new()
         .set_year(19)
@@ -65,7 +66,6 @@ fn main() -> ! {
         .. rtc::Interrupts::default()
     });
     exti.listen(
-        &mut rcc,
         &mut syscfg,
         gpio::Port::PA, // argument ignored; next argument is not a GPIO line
         exti_line,
