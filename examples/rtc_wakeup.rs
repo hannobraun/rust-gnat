@@ -37,7 +37,6 @@ fn main() -> ! {
     // Enable LED to signal that MCU is running
     led.set_low().unwrap();
 
-    let mut nvic   = cp.NVIC;
     let mut scb    = cp.SCB;
     let mut exti   = dp.EXTI;
     let mut pwr    = PWR::new(dp.PWR, &mut rcc);
@@ -79,7 +78,6 @@ fn main() -> ! {
     exti.wait_for_irq(
         exti_line,
         pwr.standby_mode(&mut scb),
-        &mut nvic,
     );
 
     // Waking up from Standby mode resets the microcontroller, so we should
