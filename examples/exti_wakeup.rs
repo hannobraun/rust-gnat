@@ -29,7 +29,6 @@ fn main() -> ! {
     let mut exti   = dp.EXTI;
     let mut pwr    = PWR::new(dp.PWR, &mut rcc);
     let mut delay  = cp.SYST.delay(rcc.clocks);
-    let mut nvic   = cp.NVIC;
     let mut scb    = cp.SCB;
     let mut syscfg = SYSCFG::new(dp.SYSCFG_COMP, &mut rcc);
 
@@ -56,7 +55,6 @@ fn main() -> ! {
                     ultra_low_power: true,
                 },
             ),
-            &mut nvic,
         );
 
         led.set_low().unwrap();

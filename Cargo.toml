@@ -6,25 +6,20 @@ edition = "2018"
 
 
 [dependencies.stm32l0xx-hal]
-version  = "0.2.0"
+version  = "0.3.1"
 features = ["rt", "stm32l082"]
 
 [dev-dependencies]
 cortex-m    = "0.6.1"
 cortex-m-rt = "0.6.10"
 panic-halt  = "0.2.0"
-usb-device  = "0.2.2"
+usb-device  = "0.2.3"
 usbd-serial = "0.1.0"
 
 [dev-dependencies.stm32-usbd]
-version  = "0.3.1"
+git      = "https://github.com/stm32-rs/stm32-usbd.git"
+rev      = "67447c6391d93631d9eda6e364d5d465fd6a9222"
 features = ["stm32l0x2xx"]
-
-
-# Required because stm32-usbd depends on the latest crates.io version, while the
-# examples in this repository depend on unreleased features.
-[patch.crates-io.stm32l0xx-hal]
-git = "https://github.com/stm32-rs/stm32l0xx-hal.git"
 
 
 [profile.release]
