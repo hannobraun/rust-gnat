@@ -404,6 +404,17 @@ struct Usb {
 /// of this writing, `bbqueue` doesn't support ARMv6-M (i.e. Cortex-M0/M0+).
 struct Buffer {
     /// The buffer itself
+    ///
+    /// In theory, we could use the `generic-array` crate to make this buffer
+    /// generic over its length. In practice, we run into some limitations of
+    /// `const fn` when trying to do that, namely that trait bounds on `const
+    /// fn` require nightly.
+    ///
+    /// For now, we just have to choose an appropriate size for our target
+    /// platform, but long-term this shouldn't be a problem anymore, either
+    /// because of improvements to `const fn` make `GenericArray` usable, or
+    /// because const generics become available and make `GenericArray
+    /// unnecessary.
     data: [u8; 64],
 
     /// Points to the start of valid data in the buffer
