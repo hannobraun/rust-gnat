@@ -38,6 +38,7 @@ use gnat::hal::{
     timer::Timer,
     usb,
 };
+use nb::block;
 use stm32_usbd::{
     UsbBus,
     UsbBusType,
@@ -285,60 +286,87 @@ impl UsbWriter {
 
     /// Writes data to the USB serial connection
     ///
-    /// Please note that `fmt::Write` is implemented for `UsbWriter`. If you can
-    /// afford the overhead, you might use the `write!` macro to write to the
-    /// serial connection instead of using this method directly.
+    /// This method will either write all data to the buffer in one go, or
+    /// return `Err(nb::Error::WouldBlock)`.
     ///
-    /// This method returns when all data has been written into the buffer. If
-    /// there is not enough space left in the buffer, this function will block
-    /// until all data has been written.
+    /// Calling this function will, by itself, do nothing useful. You must call
+    /// [`UsbWriter::update`] regularly, to make sure the buffered data gets
+    /// written to the connection.
     ///
-    /// Please note that this could lead to a deadlock, if this blocks the same
-    /// thread that would otherwise call the [`UsbWriter::update`] method. This
-    /// is why it's recommended to always call `update` from an interrupt
-    /// handler.
-    ///
-    /// Please note that it's also possible to deadlock one writing thread, if
-    /// a higher-priority keeps filling up the buffer faster than it can be
-    /// written to the serial connection.
+    /// The data passed to this method must fit into the buffer, otherwise
+    /// `Err(nb::Other(BufferTooSmallError))` is returned. If you need to write
+    /// more data and are fine with blocking, consider calling
+    /// [`UsbWriter::write_blocking`] instead.
     ///
     /// This method is thread-safe, meaning there is no synchronization required
-    /// to use it from multiple threads. Please note, however, that multiple
-    /// threads writing at the same time can lead to their output being mixed
-    /// together in the serial connection.
-    pub fn write(&self, data: &[u8]) {
+    /// to use it from multiple threads.
+    pub fn write(&self, data: &[u8]) -> nb::Result<(), BufferTooSmallError> {
+        cortex_m::interrupt::free(|cs| {
+            let mut buffer = self.buffer.borrow(cs).borrow_mut();
+
+            if data.len() > buffer.data.len() {
+                return Err(nb::Error::Other(BufferTooSmallError));
+            }
+
+            let free_space = buffer.data.len() - buffer.last;
+            if data.len() > free_space {
+                return Err(nb::Error::WouldBlock);
+            }
+
+            let start = buffer.last;
+            let end   = buffer.last + data.len();
+
+            buffer.data[start .. end].copy_from_slice(data);
+            buffer.last += data.len();
+
+            Ok(())
+        })
+    }
+
+    /// Blockingly write data to the USB serial connection
+    ///
+    /// Writes data to the serial connection, blocking until all data has been
+    /// written into the buffer. Please note that this method is not optimized
+    /// for high-throughput situations. If a higher-priority thread keeps
+    /// writing data to the buffer, this method could block forever.
+    ///
+    /// Calling this function will, by itself, do nothing useful. You must call
+    /// [`UsbWriter::update`] regularly, to make sure the buffered data gets
+    /// written to the connection.
+    ///
+    /// This method is thread-safe, meaning there is no synchronization required
+    /// to use it from multiple threads.
+    pub fn write_blocking(&self, data: &[u8]) {
+        let buffer_size = cortex_m::interrupt::free(|cs| {
+            let buffer = self.buffer.borrow(cs).borrow();
+            buffer.data.len()
+        });
+
         let mut offset = 0;
 
         while offset < data.len() {
-            cortex_m::interrupt::free(|cs| {
-                let mut buffer = self.buffer.borrow(cs).borrow_mut();
+            let bytes_to_write = usize::min(data.len(), buffer_size);
 
-                let remaining   = data.len() - offset;
-                let free_space  = buffer.data.len() - buffer.last;
-                let writing_now = usize::min(remaining, free_space);
+            block!(self.write(&data[offset..bytes_to_write]))
+                // Can't panic, as we made sure not to write more bytes than can
+                // fit the buffer.
+                .unwrap();
 
-                let buffer_start = buffer.last;
-                let buffer_end   = buffer.last + writing_now;
-
-                let data_start = offset;
-                let data_end   = offset + writing_now;
-
-                buffer.data[buffer_start .. buffer_end]
-                    .copy_from_slice(&data[data_start .. data_end]);
-
-                buffer.last += writing_now;
-                offset      += writing_now;
-            })
+            offset += bytes_to_write;
         }
     }
 }
 
 impl fmt::Write for &'_ UsbWriter {
     fn write_str(&mut self, s: &str) -> fmt::Result {
-        self.write(s.as_bytes());
+        self.write_blocking(s.as_bytes());
         Ok(())
     }
 }
+
+
+#[derive(Debug)]
+pub struct BufferTooSmallError;
 
 
 /// Encapsulates the USB connection
@@ -376,6 +404,17 @@ struct Usb {
 /// of this writing, `bbqueue` doesn't support ARMv6-M (i.e. Cortex-M0/M0+).
 struct Buffer {
     /// The buffer itself
+    ///
+    /// In theory, we could use the `generic-array` crate to make this buffer
+    /// generic over its length. In practice, we run into some limitations of
+    /// `const fn` when trying to do that, namely that trait bounds on `const
+    /// fn` require nightly.
+    ///
+    /// For now, we just have to choose an appropriate size for our target
+    /// platform, but long-term this shouldn't be a problem anymore, either
+    /// because of improvements to `const fn` make `GenericArray` usable, or
+    /// because const generics become available and make `GenericArray
+    /// unnecessary.
     data: [u8; 64],
 
     /// Points to the start of valid data in the buffer
