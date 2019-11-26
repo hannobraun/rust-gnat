@@ -40,7 +40,7 @@ fn main() -> ! {
     let mut scb    = cp.SCB;
     let mut exti   = dp.EXTI;
     let mut pwr    = PWR::new(dp.PWR, &mut rcc);
-    let mut syscfg = SYSCFG::new(dp.SYSCFG_COMP, &mut rcc);
+    let mut syscfg = SYSCFG::new(dp.SYSCFG, &mut rcc);
 
 
     let instant = Instant::new()

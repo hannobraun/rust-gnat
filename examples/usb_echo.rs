@@ -19,7 +19,7 @@ use gnat::hal::{
     pwr::PWR,
     rcc,
     syscfg::SYSCFG,
-    usb,
+    usb::USB,
 };
 use stm32_usbd::UsbBus;
 use usbd_serial::{
@@ -44,19 +44,20 @@ fn main() -> ! {
     let mut scb    = cp.SCB;
     let mut rcc    = dp.RCC.freeze(rcc::Config::hsi16());
     let mut pwr    = PWR::new(dp.PWR, &mut rcc);
-    let mut syscfg = SYSCFG::new(dp.SYSCFG_COMP, &mut rcc);
+    let mut syscfg = SYSCFG::new(dp.SYSCFG, &mut rcc);
     let     gpioa  = dp.GPIOA.split(&mut rcc);
     let     gpiob  = dp.GPIOB.split(&mut rcc);
 
     let mut led = gpiob.pb12.into_push_pull_output();
     led.set_high().unwrap(); // disable LED
 
-    usb::init(&mut rcc, &mut syscfg, dp.CRS);
-
     let usb_dm = gpioa.pa11;
     let usb_dp = gpioa.pa12;
 
-    let     bus    = UsbBus::new(dp.USB, (usb_dm, usb_dp));
+    let hsi48 = rcc.enable_hsi48(&mut syscfg, dp.CRS);
+    let usb   = USB::new(dp.USB, usb_dm, usb_dp, hsi48);
+
+    let     bus    = UsbBus::new(usb);
     let mut serial = SerialPort::new(&bus);
 
     // Use special VID/PID for testing from pid.codes.

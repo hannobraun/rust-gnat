@@ -6,20 +6,18 @@ edition = "2018"
 
 
 [dependencies.stm32l0xx-hal]
-version  = "0.3.1"
-features = ["rt", "stm32l082"]
+git      = "https://github.com/stm32-rs/stm32l0xx-hal.git"
+features = ["rt", "stm32l082", "stm32-usbd"]
+
 
 [dev-dependencies]
 cortex-m    = "0.6.1"
 cortex-m-rt = "0.6.10"
 nb          = "0.1.2"
 panic-halt  = "0.2.0"
+stm32-usbd  = "0.5.0"
 usb-device  = "0.2.3"
 usbd-serial = "0.1.0"
-
-[dev-dependencies.stm32-usbd]
-version  = "0.4.0"
-features = ["stm32l0x2xx"]
 
 
 [profile.release]
