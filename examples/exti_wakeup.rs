@@ -30,7 +30,7 @@ fn main() -> ! {
     let mut pwr    = PWR::new(dp.PWR, &mut rcc);
     let mut delay  = cp.SYST.delay(rcc.clocks);
     let mut scb    = cp.SCB;
-    let mut syscfg = SYSCFG::new(dp.SYSCFG_COMP, &mut rcc);
+    let mut syscfg = SYSCFG::new(dp.SYSCFG, &mut rcc);
 
     let     button = gpiob.pb5.into_floating_input();
     let mut led    = gpiob.pb12.into_push_pull_output();
@@ -40,14 +40,14 @@ fn main() -> ! {
 
     exti.listen(
         &mut syscfg,
-        button.port,
-        button.i,
+        button.port(),
+        button.pin_number(),
         exti::TriggerEdge::Rising,
     );
 
     loop {
         exti.wait_for_irq(
-            button.i,
+            button.pin_number(),
             pwr.stop_mode(
                 &mut scb,
                 &mut rcc,

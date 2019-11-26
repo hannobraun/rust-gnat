@@ -5,13 +5,21 @@
 extern crate panic_halt;
 
 
+use cortex_m::{
+    interrupt,
+    peripheral::NVIC,
+};
 use cortex_m_rt::entry;
 use gnat::hal::{
     prelude::*,
-    pac,
+    pac::{
+        self,
+        Interrupt,
+    },
+    pwr::PWR,
     rcc,
     syscfg::SYSCFG,
-    usb,
+    usb::USB,
 };
 use stm32_usbd::UsbBus;
 use usbd_serial::{
@@ -30,22 +38,26 @@ use usb_device::{
 
 #[entry]
 fn main() -> ! {
+    let cp = pac::CorePeripherals::take().unwrap();
     let dp = pac::Peripherals::take().unwrap();
 
+    let mut scb    = cp.SCB;
     let mut rcc    = dp.RCC.freeze(rcc::Config::hsi16());
-    let mut syscfg = SYSCFG::new(dp.SYSCFG_COMP, &mut rcc);
+    let mut pwr    = PWR::new(dp.PWR, &mut rcc);
+    let mut syscfg = SYSCFG::new(dp.SYSCFG, &mut rcc);
     let     gpioa  = dp.GPIOA.split(&mut rcc);
     let     gpiob  = dp.GPIOB.split(&mut rcc);
 
     let mut led = gpiob.pb12.into_push_pull_output();
     led.set_high().unwrap(); // disable LED
 
-    usb::init(&mut rcc, &mut syscfg, dp.CRS);
-
     let usb_dm = gpioa.pa11;
     let usb_dp = gpioa.pa12;
 
-    let     bus    = UsbBus::new(dp.USB, (usb_dm, usb_dp));
+    let hsi48 = rcc.enable_hsi48(&mut syscfg, dp.CRS);
+    let usb   = USB::new(dp.USB, usb_dm, usb_dp, hsi48);
+
+    let     bus    = UsbBus::new(usb);
     let mut serial = SerialPort::new(&bus);
 
     // Use special VID/PID for testing from pid.codes.
@@ -57,13 +69,25 @@ fn main() -> ! {
         .device_class(USB_CLASS_CDC)
         .build();
 
+    // If this program is run right after being uploaded via USB, the host
+    // computer will be confused and still think it's connected to the
+    // bootloader. Let's force it to recognize us, as to not require a manual
+    // reset after each upload.
+    device.bus().force_reenumeration(|| {});
+
     loop {
+        // Wait for USB interrupt
+        interrupt::free(|_| {
+            unsafe { NVIC::unmask(Interrupt::USB) };
+            pwr.sleep_mode(&mut scb).enter();
+            NVIC::mask(Interrupt::USB);
+            NVIC::unpend(Interrupt::USB);
+        });
+
         if !device.poll(&mut [&mut serial]) {
             continue;
         }
 
-        // Ignore errors. For some reason, USB errors seem to be returned all
-        // the time, even though everything works fine.
         match echo(&mut serial) {
             Ok(()) | Err(UsbError::WouldBlock) => (),
 
@@ -83,6 +107,13 @@ fn echo<Bus>(serial: &mut SerialPort<Bus>)
     let mut buffer = [0u8; 32];
 
     let bytes_read = serial.read(&mut buffer)?;
+
+    // Switch all lower-case characters to upper-case
+    for b in &mut buffer {
+        if *b >= 0x61 && *b <= 0x7a {
+            *b -= 0x20;
+        }
+    }
 
     let mut offset = 0;
     while offset < bytes_read {
