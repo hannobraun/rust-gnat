@@ -6,7 +6,7 @@ edition = "2018"
 
 
 [dependencies.stm32l0xx-hal]
-git      = "https://github.com/stm32-rs/stm32l0xx-hal.git"
+version  = "0.5"
 features = ["rt", "stm32l082", "stm32-usbd"]
 
 
