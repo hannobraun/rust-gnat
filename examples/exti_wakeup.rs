@@ -8,7 +8,11 @@ extern crate panic_halt;
 use cortex_m_rt::entry;
 use stm32l0xx_hal::{
     prelude::*,
-    exti,
+    exti::{
+        self,
+        Exti,
+        ExtiLine,
+    },
     pac,
     pwr::{
         self,
@@ -26,7 +30,7 @@ fn main() -> ! {
 
     let mut rcc    = dp.RCC.freeze(Config::hsi16());
     let     gpiob  = dp.GPIOB.split(&mut rcc);
-    let mut exti   = dp.EXTI;
+    let mut exti   = Exti::new(dp.EXTI);
     let mut pwr    = PWR::new(dp.PWR, &mut rcc);
     let mut delay  = cp.SYST.delay(rcc.clocks);
     let mut scb    = cp.SCB;
@@ -38,16 +42,19 @@ fn main() -> ! {
     // Disable LED
     led.set_high().unwrap();
 
-    exti.listen(
+    let exti_line = ExtiLine::from_raw_line(button.pin_number())
+        .unwrap();
+
+    exti.listen_gpio(
         &mut syscfg,
         button.port(),
-        button.pin_number(),
+        exti_line,
         exti::TriggerEdge::Rising,
     );
 
     loop {
         exti.wait_for_irq(
-            button.pin_number(),
+            exti_line,
             pwr.stop_mode(
                 &mut scb,
                 &mut rcc,

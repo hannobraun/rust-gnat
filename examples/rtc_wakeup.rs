@@ -7,8 +7,11 @@ extern crate panic_halt;
 
 use cortex_m_rt::entry;
 use stm32l0xx_hal::{
-    exti,
-    gpio,
+    exti::{
+        self,
+        ConfigurableLine,
+        Exti,
+    },
     prelude::*,
     pac,
     pwr::PWR,
@@ -18,7 +21,6 @@ use stm32l0xx_hal::{
         Instant,
         RTC,
     },
-    syscfg::SYSCFG,
 };
 
 
@@ -37,10 +39,9 @@ fn main() -> ! {
     // Enable LED to signal that MCU is running
     led.set_low().unwrap();
 
-    let mut scb    = cp.SCB;
-    let mut exti   = dp.EXTI;
-    let mut pwr    = PWR::new(dp.PWR, &mut rcc);
-    let mut syscfg = SYSCFG::new(dp.SYSCFG, &mut rcc);
+    let mut scb  = cp.SCB;
+    let mut exti = Exti::new(dp.EXTI);
+    let mut pwr  = PWR::new(dp.PWR, &mut rcc);
 
 
     let instant = Instant::new()
@@ -58,15 +59,13 @@ fn main() -> ! {
         instant,
     );
 
-    let exti_line = 20; // RTC wakeup timer
+    let exti_line = ConfigurableLine::RtcWakeup;
 
     rtc.enable_interrupts(rtc::Interrupts {
         wakeup_timer: true,
         .. rtc::Interrupts::default()
     });
-    exti.listen(
-        &mut syscfg,
-        gpio::Port::PA, // argument ignored; next argument is not a GPIO line
+    exti.listen_configurable(
         exti_line,
         exti::TriggerEdge::Rising,
     );
