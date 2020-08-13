@@ -6,17 +6,21 @@ edition = "2018"
 
 
 [dependencies.stm32l0xx-hal]
-version  = "0.5"
-features = ["rt", "stm32l082", "stm32-usbd"]
+version  = "0.6.2"
+# Unfortunately the CMWX1ZZABZ-078 data sheet doesn't give us the specific model
+# used, we just know it's an STM32L082. I'm just choosing one at random. They
+# only differ in the package, but all have 32 pins, so it hopefully won't make a
+# difference.
+features = ["rt", "mcu-STM32L082KBTx", "stm32-usbd"]
 
 
 [dev-dependencies]
-cortex-m    = "0.6.1"
-cortex-m-rt = "0.6.10"
-nb          = "0.1.2"
+cortex-m    = "0.6.3"
+cortex-m-rt = "0.6.12"
+nb          = "1.0.0"
 panic-halt  = "0.2.0"
-stm32-usbd  = "0.5.0"
-usb-device  = "0.2.3"
+stm32-usbd  = "0.5.1"
+usb-device  = "0.2.5"
 usbd-serial = "0.1.0"
 
 
