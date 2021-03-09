@@ -15,7 +15,7 @@ features = ["rt", "mcu-STM32L082KBTx", "stm32-usbd"]
 
 
 [dev-dependencies]
-cortex-m    = "0.6.3"
+cortex-m    = "0.7.2"
 cortex-m-rt = "0.6.12"
 nb          = "1.0.0"
 panic-halt  = "0.2.0"
