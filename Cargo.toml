@@ -6,7 +6,7 @@ edition = "2018"
 
 
 [dependencies.stm32l0xx-hal]
-version  = "0.6.2"
+version  = "0.7.0"
 # Unfortunately the CMWX1ZZABZ-078 data sheet doesn't give us the specific model
 # used, we just know it's an STM32L082. I'm just choosing one at random. They
 # only differ in the package, but all have 32 pins, so it hopefully won't make a
